@@ -1,1 +1,158 @@
 
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>MCP and A2A: How AI Agents Actually Work in Production</title>
+    <meta property="article:published_time" content="2026-07-12T10:00:00.000Z" />
+</head>
+<body>
+    <main>
+        <article>
+            <section>
+                <div class="pw-post-title">
+                    <h1>MCP and A2A: How AI Agents Actually Work in Production</h1>
+                </div>
+
+                <p class="pw-post-body-paragraph">
+                    If you've been anywhere near AI engineering lately, you've run into two acronyms: <strong>MCP</strong> and <strong>A2A</strong>. They get mentioned in the same breath so often that people assume they're competing standards. They're not. They solve two different problems, and most production AI agent systems today use both.
+                </p>
+
+                <p class="pw-post-body-paragraph">
+                    Here's what each one actually is, where they show up in real systems, and what tends to go wrong once you leave the demo.
+                </p>
+
+                <hr />
+
+                <h2>What is MCP?</h2>
+
+                <p class="pw-post-body-paragraph">
+                    MCP stands for <strong>Model Context Protocol</strong>. Anthropic released it in November 2024, and it answers a simple question: <em>how does an AI model reach the outside world?</em>
+                </p>
+
+                <p class="pw-post-body-paragraph">
+                    Before MCP, if you wanted an AI agent to search the web, query a database, and send a Slack message, you had to hand-wire three separate integrations — three SDKs, three sets of credentials, three ways of handling errors. Multiply that across every tool and every agent you build, and you get what people call the N×M problem: N agents each needing custom code for M tools.
+                </p>
+
+                <p class="pw-post-body-paragraph">
+                    MCP fixes this by standardising the connection. A tool, database, or API exposes itself as an "MCP server." Any AI application with an MCP client can talk to it using the same protocol, without custom glue code. Build the integration once, and every MCP-compatible agent can use it.
+                </p>
+
+                <p class="pw-post-body-paragraph">
+                    Think of it as a common plug shape for AI tools. The comparison people reach for is USB-C: one connector, many devices.
+                </p>
+
+                <p class="pw-post-body-paragraph">
+                    It's been adopted fast. MCP now sees roughly <strong>97 million monthly SDK downloads</strong>, with close to <strong>10,000 servers</strong> listed in the official registry, and native support in Claude, ChatGPT, Gemini, Copilot, and Cursor. Governance sits with the Linux Foundation now, not just Anthropic.
+                </p>
+
+                <h2>What is A2A?</h2>
+
+                <p class="pw-post-body-paragraph">
+                    A2A stands for <strong>Agent2Agent</strong>. Google introduced it in April 2025, and it answers a different question: <em>how does one AI agent talk to another AI agent?</em>
+                </p>
+
+                <p class="pw-post-body-paragraph">
+                    This matters once you're not building one agent anymore, but several — maybe a research agent, a writing agent, and a compliance-checking agent, possibly built by different teams on different frameworks. A2A lets these agents discover each other, hand off tasks, and exchange results, regardless of who built them or what they run on.
+                </p>
+
+                <p class="pw-post-body-paragraph">
+                    Each A2A-enabled agent publishes something called an <strong>Agent Card</strong> — a small JSON file describing what it can do. Other agents read this card to figure out whether it's the right specialist for the job, then delegate work to it and track that work through a defined lifecycle (submitted, working, completed, failed, and a few states in between for things like needing more information or authorization).
+                </p>
+
+                <p class="pw-post-body-paragraph">
+                    A2A also moved to the Linux Foundation, and at its one-year mark in April 2026 it reported more than <strong>150 supporting organisations</strong> and production use across supply chain, financial services, insurance, and IT operations.
+                </p>
+
+                <h2>The simplest way to remember the difference</h2>
+
+                <p class="pw-post-body-paragraph">
+                    <strong>MCP is vertical.</strong> It connects a model down to its tools and data.
+                </p>
+
+                <p class="pw-post-body-paragraph">
+                    <strong>A2A is horizontal.</strong> It connects one agent across to another agent.
+                </p>
+
+                <p class="pw-post-body-paragraph">
+                    Most production systems use both, layered on top of each other. An orchestrator uses A2A to find and delegate a task to the right specialist agent. That specialist then uses its own MCP connections to actually do the work — querying its databases, calling its APIs, reading its files.
+                </p>
+
+                <hr />
+
+                <h2>Use case examples</h2>
+
+                <h3>Customer support triage (MCP)</h3>
+                <p class="pw-post-body-paragraph">
+                    A support agent uses MCP to connect to a ticketing system, a knowledge base, and an order-management API. It pulls the customer's order history, checks the relevant policy doc, and drafts a response — all through standardised tool calls rather than custom integrations for each backend system.
+                </p>
+
+                <h3>Research-and-write pipeline (A2A + MCP)</h3>
+                <p class="pw-post-body-paragraph">
+                    A content system has a research agent and a writing agent. The orchestrator delegates the research task to the research agent over A2A. That agent uses its own MCP connections to hit search APIs and internal document stores, then returns structured findings back over A2A. The writing agent picks those findings up and produces the draft. Each agent stays independently owned, versioned, and swappable.
+                </p>
+
+                <h3>Multi-agent compliance review (A2A)</h3>
+                <p class="pw-post-body-paragraph">
+                    In financial services and insurance, a common pattern is an orchestrator that routes a case through a research agent, a risk-analysis agent, and a compliance agent in sequence, each built by a different internal team, coordinating through A2A's task lifecycle so the handoffs are traceable.
+                </p>
+
+                <h3>Enterprise agent "control planes" (both)</h3>
+                <p class="pw-post-body-paragraph">
+                    Platforms like IBM watsonx Orchestrate are explicitly being positioned as the layer that manages fleets of agents — deployed from different sources, coordinating through protocols like A2A, each reaching its own tools through MCP, with governance and monitoring wrapped around the whole thing.
+                </p>
+
+                <hr />
+
+                <h2>Where it gets hard in practice</h2>
+
+                <h3>Deciding: tool or agent?</h3>
+                <p class="pw-post-body-paragraph">
+                    The most common real design question is whether something should be an MCP server or an A2A agent. A document summariser, for example — is it a fixed function you call, or an independent agent that might ask a clarifying question?
+                </p>
+                <p class="pw-post-body-paragraph">
+                    A useful rule: if the behaviour is a fixed input-to-output function with no judgment involved, make it an MCP tool. If it makes its own decisions, might need more context, or coordinates with something else, make it an A2A agent. When in doubt, default to a tool — it's simpler, cheaper, and easier to reason about. You can always upgrade it later.
+                </p>
+
+                <h3>Tool sprawl</h3>
+                <p class="pw-post-body-paragraph">
+                    Every MCP server you connect adds its tools to the list the model sees on every turn. Connect too many, and the model has to choose from dozens of overlapping options every time it acts. This isn't just a cost problem — accuracy drops too, because models pick the wrong tool more often as the option list grows.
+                </p>
+
+                <h3>Credential and secret sprawl</h3>
+                <p class="pw-post-body-paragraph">
+                    Without central management, every agent ends up holding its own API keys and service credentials, scattered across config files and environment variables. This is a real, measured problem: security researchers have found tens of thousands of live secrets sitting in public MCP configuration files.
+                </p>
+
+                <h3>Observability</h3>
+                <p class="pw-post-body-paragraph">
+                    When a multi-step, multi-agent run fails, figuring out exactly where it broke — which tool call, which agent, which handoff — is genuinely difficult without tracing built in from the start. Teams that skip this find out the hard way, usually during their first real production incident.
+                </p>
+
+                <h3>Security</h3>
+                <p class="pw-post-body-paragraph">
+                    2026 has already seen a malicious MCP server discovered in the wild (it shipped clean for months before quietly adding data-exfiltration code) and critical vulnerabilities disclosed in widely used MCP infrastructure. Treating tool descriptions and remote servers as fully trusted is no longer a safe default.
+                </p>
+
+                <h3>Governance is a separate problem</h3>
+                <p class="pw-post-body-paragraph">
+                    Neither protocol tells you who is <em>allowed</em> to do what, under whose identity, or how actions get audited. MCP and A2A standardise the plumbing — how agents connect and communicate. They don't standardise policy, permissions, or accountability. That layer still has to be built on top, and a lot of teams adopt the protocols and assume the governance question is solved. It isn't.
+                </p>
+
+                <hr />
+
+                <h2>The bottom line</h2>
+
+                <p class="pw-post-body-paragraph">
+                    MCP gives an agent its tools. A2A gives agents a way to work with each other. Neither one is optional if you're building anything beyond a single-agent prototype, and in most real deployments today, you'll find both running together — quietly doing their jobs at different layers of the same system.
+                </p>
+
+                <p class="pw-post-body-paragraph">
+                    The protocols themselves are largely settled at this point. The harder work — deciding what should be a tool versus an agent, keeping the tool surface lean, securing credentials, tracing failures, and governing who's allowed to do what — is where most of the real engineering still happens.
+                </p>
+
+            </section>
+        </article>
+    </main>
+</body>
+</html>
